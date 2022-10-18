@@ -1,5 +1,5 @@
 import numpy as np
-import networkx as nx
+#import networkx as nx
 from pyitlib import discrete_random_variable as drv
 
 def build_graph(X_train, y_train, k=2):
@@ -49,19 +49,19 @@ def build_graph(X_train, y_train, k=2):
         edges.append((x_nodes[parent_idx], target_node))
   return edges
 
-def draw_graph(edges):
-  '''
-  Draw the graph
-
-  Param
-  -----------------
-  edges: edges of the graph
-
-  '''
-  graph = nx.DiGraph(edges)
-  pos=nx.spiral_layout(graph)
-  nx.draw(graph, pos, node_color='r', edge_color='b')
-  nx.draw_networkx_labels(graph, pos, font_size=20, font_family="sans-serif")
+# def draw_graph(edges):
+#   '''
+#   Draw the graph
+# 
+#   Param
+#   -----------------
+#   edges: edges of the graph
+# 
+#   '''
+#   graph = nx.DiGraph(edges)
+#   pos=nx.spiral_layout(graph)
+#   nx.draw(graph, pos, node_color='r', edge_color='b')
+#   nx.draw_networkx_labels(graph, pos, font_size=20, font_family="sans-serif")
 
 
 def get_cross_table(*cols, apply_wt=False):
