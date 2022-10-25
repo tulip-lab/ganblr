@@ -2,7 +2,7 @@ import numpy as np
 #import networkx as nx
 from pyitlib import discrete_random_variable as drv
 
-def build_graph(X_train, y_train, k=2):
+def build_graph(X, y, k=2):
   '''
   kDB algorithm
 
@@ -14,17 +14,17 @@ def build_graph(X_train, y_train, k=2):
   graph edges
   '''
   #ensure data
-  num_features = X_train.shape[1]
+  num_features = X.shape[1]
   x_nodes = list(range(num_features))
   y_node  = num_features
 
   #util func
-  _x = lambda i:X_train[:,i]
-  _x2comb = lambda i,j:(X_train[:,i], X_train[:,j])
+  _x = lambda i:X[:,i]
+  _x2comb = lambda i,j:(X[:,i], X[:,j])
 
   #feature indexes desc sort by mutual information
   sorted_feature_idxs = np.argsort([
-    drv.information_mutual(_x(i), y_train) 
+    drv.information_mutual(_x(i), y) 
     for i in range(num_features)
   ])[::-1]
 
@@ -40,7 +40,7 @@ def build_graph(X_train, y_train, k=2):
         edges.append((x_nodes[idx], target_node))
     else:
       first_k_parent_mi_idxs = np.argsort([
-        drv.information_mutual_conditional(*_x2comb(i, target_idx), y_train)
+        drv.information_mutual_conditional(*_x2comb(i, target_idx), y)
         for i in parent_candidate_idxs
       ])[::-1][:k]
       first_k_parent_idxs = parent_candidate_idxs[first_k_parent_mi_idxs]
@@ -220,13 +220,13 @@ class KdbHighOrderFeatureEncoder:
         self.ohe_ = None
         #self.full_=True
     
-    def fit(self, X_train, y_train, k=2):
+    def fit(self, X, y, k=2):
         '''
         build the kdb model, obtain the dependencies.
         '''
-        edges = build_graph(X_train, y_train, k)
-        #n_classes = len(np.unique(y_train))
-        num_features = X_train.shape[1]
+        edges = build_graph(X, y, k)
+        #n_classes = len(np.unique(y))
+        num_features = X.shape[1]
 
         if k > 0:
             dependencies = _get_dependencies_without_y(list(range(num_features)), num_features, edges)
@@ -234,11 +234,11 @@ class KdbHighOrderFeatureEncoder:
             dependencies = {x:[] for x in range(num_features)}
         
         self.dependencies_ = dependencies
-        self.feature_uniques_ = [len(np.unique(X_train[:,i])) for i in range(num_features)]
+        self.feature_uniques_ = [len(np.unique(X[:,i])) for i in range(num_features)]
         self.edges_ = edges
         #self.full_ = full
 
-        Xk, constraints, have_value_idxs = self.transform(X_train, return_constraints=True, use_ohe=False)
+        Xk, constraints, have_value_idxs = self.transform(X, return_constraints=True, use_ohe=False)
 
         from sklearn.preprocessing import OneHotEncoder
         self.ohe_ = OneHotEncoder().fit(Xk)
