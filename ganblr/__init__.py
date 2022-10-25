@@ -1,0 +1,5 @@
+"""Top-level package for TGAN."""
+
+__author__ = """Tulip Lab"""
+__email__ = 'jhzhou@tuliplab.academy'
+__version__ = '0.1.0'

@@ -39,3 +39,45 @@ def get_lr(input_dim, output_dim, constraint=None,KL_LOSS=0):
     model.compile(loss=elr_loss(KL_LOSS), optimizer='adam', metrics=['accuracy'])
     #log_elr = model.fit(*train_data, validation_data=test_data, batch_size=batch_size,epochs=epochs)
     return model 
+
+def sample(*arrays, n=None, frac=None, random_state=None):
+    '''
+    generate sample random arrays from given arrays. The given arrays must be same size.
+    
+    Parameters:
+    --------------
+    *arrays: arrays to be sampled.
+
+    n: int value, Number of random samples to generate.
+
+    frac: Float value between 0 and 1, Returns (float value * length of given arrays). frac cannot be used with n.
+
+    random_state: int value or numpy.random.RandomState, optional. if set to a particular integer, will return same samples in every iteration.
+
+    Return:
+    --------------
+    the sampled array(s). Passing in multiple arrays will result in the return of a tuple.
+
+    '''
+    random = np.random
+    if isinstance(random_state, int):
+        random = random.RandomState(random_state)
+    elif isinstance(random_state, np.random.RandomState):
+        random = random_state
+    
+    arr0 = arrays[0]
+    original_size = len(arr0)
+    if n == None and frac == None:
+        raise Exception('You must specify one of frac or size.')
+    if n == None:
+        n = int(len(arr0) * frac)
+
+    idxs = random.choice(original_size, n, replace=False)
+    if len(arrays) > 1:
+        sampled_arrays = []
+        for arr in arrays:
+            assert(len(arr) == original_size)
+            sampled_arrays.append(arr[idxs])
+        return tuple(sampled_arrays)
+    else:
+        return arr0[idxs]
