@@ -81,3 +81,54 @@ def sample(*arrays, n=None, frac=None, random_state=None):
         return tuple(sampled_arrays)
     else:
         return arr0[idxs]
+
+DEMO_DATASETS = {
+    '': (
+        '',
+    ),
+    '': (
+        '',
+    )
+}
+
+from .kdb import KdbHighOrderFeatureEncoder
+from sklearn.preprocessing import OneHotEncoder
+from pandas import read_csv
+import numpy as np
+
+class DataUtils:
+    """
+    useful data utils for the preparation before training.
+    """
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.data_size = len(x)
+        self.num_features = x.shape[1]
+
+        yunique, ycounts = np.unique(y, return_counts=True)
+        self.num_classes = len(yunique)
+        self.class_counts = ycounts
+        self.feature_uniques = [len(np.unique(x[:,i])) for i in range(self.num_features)]
+        
+        self.constraint_positions = None
+        self._kdbe = None
+
+        self.__kdbe_x = None
+    
+    def get_kdbe_x(self, k=0, dense_format=True) -> np.ndarray:
+        if self.__kdbe_x is not None:
+            return self.__kdbe_x
+        if self._kdbe == None:
+            self._kdbe = KdbHighOrderFeatureEncoder()
+            self._kdbe.fit(self.x, self.y, k=k)
+        kdbex = self._kdbe.transform(self.x)
+        if dense_format:
+            kdbex = kdbex.todense()
+        self.__kdbe_x = kdbex
+        self.constraint_positions = self._kdbe.constraints_
+        return kdbex
+    
+    def clear(self):
+        self._kdbe = None
+        self.__kdbe_x = None

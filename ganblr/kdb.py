@@ -157,6 +157,36 @@ def _add_uniform(array, noise=1e-5):
             result[:,i] = array[:,i]
     return result
 
+def _normalize_by_column(array):
+    sum_by_col = np.sum(array,axis=0)
+    return np.divide(array, sum_by_col,
+        out=np.zeros_like(array,dtype='float'),
+        where=sum_by_col !=0)
+
+def _smoothing(cct, d):
+    '''
+    probability smoothing for kdb
+    
+    Parameters:
+    -----------
+    cct (np.ndarray): cross count table with shape (x0, *parents)
+
+    d (int): dimension of cct
+
+    Return:
+    --------
+    smoothed joint prob table
+    '''
+    #covert cross-count-table to joint-prob-table by doing a normalization alone axis 0
+    jpt = _normalize_by_column(cct)
+    smoothing_idx = jpt == 0
+    if d > 1 and np.sum(smoothing_idx) > 0:
+        parent = cct.sum(axis=-1)
+        parent = _smoothing(parent, d-1)
+        parent_extend = parent.repeat(jpt.shape[-1]).reshape(jpt.shape)
+        jpt[smoothing_idx] = parent_extend[smoothing_idx]
+    return jpt
+
 def get_high_order_feature(X, col, evidence_cols, feature_uniques):
     '''
     encode the high order feature of X[col] given evidences X[evidence_cols].
@@ -218,12 +248,14 @@ class KdbHighOrderFeatureEncoder:
         self.high_order_feature_uniques_ = []
         self.edges_ = []
         self.ohe_ = None
+        self.k = None
         #self.full_=True
     
-    def fit(self, X, y, k=2):
+    def fit(self, X, y, k=0):
         '''
         build the kdb model, obtain the dependencies.
         '''
+        self.k = k
         edges = build_graph(X, y, k)
         #n_classes = len(np.unique(y))
         num_features = X.shape[1]
@@ -266,7 +298,7 @@ class KdbHighOrderFeatureEncoder:
         
         Xk = np.hstack(Xk)
         from sklearn.preprocessing import OrdinalEncoder
-        Xk = OrdinalEncoder.fit_transform(Xk)
+        Xk = OrdinalEncoder().fit_transform(Xk)
         if use_ohe:
             Xk = self.ohe_.transform(Xk)
 
@@ -276,75 +308,5 @@ class KdbHighOrderFeatureEncoder:
         else:
             return Xk
     
-    def fit_transform(self, X, y, k=2, return_constraints=False):
+    def fit_transform(self, X, y, k=0, return_constraints=False):
         return self.fit(X, y, k).transform(X, return_constraints)
-
-def sample_synthetic_data(weights, kdb_high_order_encoder, y_counts, ohe=True,size=None):
-    from pgmpy.models import BayesianModel
-    from pgmpy.sampling import BayesianModelSampling
-    from pgmpy.factors.discrete import TabularCPD
-    #basic varibles
-    feature_cards = np.array(kdb_high_order_encoder.feature_uniques_)
-    n_features = len(feature_cards)
-    n_classes = weights.shape[1] 
-    n_samples = y_counts.sum()
-
-    #ensure sum of each constraint group equals to 1, then re concat the probs
-    _idxs = np.cumsum([0] + kdb_high_order_encoder.constraints_.tolist())
-    constraint_idxs = [(_idxs[i],_idxs[i+1]) for i in range(len(_idxs)-1)]
-    
-    probs = np.exp(weights)
-    cpd_probs = [probs[start:end,:] for start, end in constraint_idxs]
-    cpd_probs = np.vstack([p/p.sum(axis=0) for p in cpd_probs])
-
-    #assign the probs to the full cpd tables
-    idxs = np.cumsum([0] + kdb_high_order_encoder.high_order_feature_uniques_)
-    feature_idxs = [(idxs[i],idxs[i+1]) for i in range(len(idxs)-1)]
-    have_value_idxs = kdb_high_order_encoder.have_value_idxs_
-    full_cpd_probs = [] 
-    for have_value, (start, end) in zip(have_value_idxs, feature_idxs):
-        #(n_high_order_feature_uniques, n_classes)
-        cpd_prob_ = cpd_probs[start:end,:]
-        #(n_all_combination) Note: the order is (*parent, variable)
-        have_value_ravel = have_value.ravel()
-        #(n_classes * n_all_combination)
-        have_value_ravel_repeat = np.hstack([have_value_ravel] * n_classes)
-        #(n_classes * n_all_combination) <- (n_classes * n_high_order_feature_uniques)
-        full_cpd_prob_ravel = np.zeros_like(have_value_ravel_repeat, dtype=float)
-        full_cpd_prob_ravel[have_value_ravel_repeat] = cpd_prob_.T.ravel()
-        #(n_classes * n_parent_combinations, n_variable_unique)
-        full_cpd_prob = full_cpd_prob_ravel.reshape(-1, have_value.shape[-1]).T
-        full_cpd_prob = _add_uniform(full_cpd_prob, noise=0)
-        full_cpd_probs.append(full_cpd_prob)
-
-    #prepare node and edge names
-    node_names = [str(i) for i in range(n_features + 1)]
-    edge_names = [(str(i), str(j)) for i,j in kdb_high_order_encoder.edges_]
-    y_name = node_names[-1]
-
-    #create TabularCPD objects
-    evidences = kdb_high_order_encoder.dependencies_
-    feature_cpds = [
-        TabularCPD(str(name), feature_cards[name], table, 
-                   evidence=[y_name, *[str(e) for e in evidences]], 
-                   evidence_card=[n_classes, *feature_cards[evidences].tolist()])
-        for (name, evidences), table in zip(evidences.items(), full_cpd_probs)
-    ]
-    y_probs = (y_counts/n_samples).reshape(-1,1)
-    y_cpd = TabularCPD(y_name, n_classes, y_probs)
-
-    #create kDB model, then sample data
-    model = BayesianModel(edge_names)
-    model.add_cpds(y_cpd, *feature_cpds)
-    sample_size = n_samples if size is None else size
-    result = BayesianModelSampling(model).forward_sample(size=sample_size)
-    sorted_result = result[node_names].values
-
-    #return
-    syn_X, syn_y = sorted_result[:,:-1], sorted_result[:,-1]
-    if ohe:
-        from sklearn.preprocessing import OneHotEncoder
-        ohe_syn_X = OneHotEncoder().fit_transform(syn_X)
-        return ohe_syn_X, syn_y
-    else:
-        return syn_X, syn_y    
