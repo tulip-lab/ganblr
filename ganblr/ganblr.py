@@ -7,12 +7,6 @@ from pgmpy.factors.discrete import TabularCPD
 import numpy as np
 import tensorflow as tf
 
-def _discrim(input_dim):
-    model = tf.keras.Sequential()
-    model.add(tf.keras.layers.Dense(1, input_dim=input_dim, activation='sigmoid'))
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    return model
-
 class GANBLR:
     """
     The GANBLR Model.
@@ -25,17 +19,27 @@ class GANBLR:
         self.k = None
         self.constraints = None
     
-    def fit(self, x, y, k=0, batch_size=32, epochs=10, warmup_epochs=1):
+    def fit(self, x, y, k=0, batch_size=32, epochs=10, warmup_epochs=1, verbose=1):
         '''
         Fit the model to the given data.
 
         Parameters:
         --------
         x, y (numpy.ndarray): Dataset to fit the model. The data should be discrete.
+        
+        k (int, optional): Parameter k of ganblr model. Must be greater than 0. No more than 2 is Suggested.
+
         batch_size (int, optional): Size of the batch to feed the model at each step. Defaults to
-            :attr:`200`.
+            :attr:`32`.
+        
         epochs (int, optional): Number of epochs to use during training. Defaults to :attr:`10`.
+        
+        warmup_epochs (int, optional): Number of epochs to use in warmup phase. Defaults to :attr:`1`.
+        
+        TODO: verbose (int, optional): Whether to output the log. Use 1 for log output and 0 for complete silence.
         '''
+        if verbose is None or not isinstance(verbose, int):
+            verbose = 1
         d = DataUtils(x, y)
         self.__d = d
         self.k = k
@@ -43,11 +47,10 @@ class GANBLR:
         history = self._warmup_run(warmup_epochs)
         syn_x, syn_y = self.sample(ohe=False) 
         discriminator_label = np.hstack([np.ones(d.data_size), np.zeros(d.data_size)])
-        print(discriminator_label.shape)
         for i in range(epochs):
             discriminator_input = np.vstack([x, syn_x])
             disc_input, disc_label = sample(discriminator_input, discriminator_label, frac=0.8)
-            disc = _discrim((disc_input.shape[1]))
+            disc = self._discrim()
             disc.fit(disc_input, disc_label, batch_size=batch_size, epochs=1)
             prob_fake = disc.predict(x)
             ls = np.mean(-np.log(np.subtract(1, prob_fake)))
@@ -56,9 +59,9 @@ class GANBLR:
         
         return self
         
-    def evaluate(self, x, y, model='lr'):
+    def evaluate(self, x, y, model='lr', preprocesser=''):
         """
-        process a TSTR(Training on Synthetic data, Testing on Real data) evaluation.
+        Perform a TSTR(Training on Synthetic data, Testing on Real data) evaluation.
 
         Parameters:
         ------------------
@@ -68,19 +71,27 @@ class GANBLR:
 
         Return:
         --------
-        accuracy.
+        accuracy score (float).
 
         """
         from sklearn.linear_model import LogisticRegression
         from sklearn.neural_network import MLPClassifier
         from sklearn.ensemble import RandomForestClassifier
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.pipeline import Pipeline
+        from sklearn.metrics import accuracy_score
+        
         eval_model = None
         if model=='lr':
-            eval_model = LogisticRegression()
+            eval_model = Pipeline([
+                ('scaler', StandardScaler()), 
+                ('lr',     LogisticRegression())]) 
         elif model == 'rf':
             eval_model = RandomForestClassifier()
         elif model == 'mlp':
-            eval_model = MLPClassifier()
+            eval_model = Pipeline([
+                ('scaler', StandardScaler()), 
+                ('mlp',    MLPClassifier())]) 
         elif hasattr(model, 'fit'):
             eval_model = model
         else:
@@ -88,9 +99,28 @@ class GANBLR:
         
         synthetic_data = self.sample()
         eval_model.fit(*synthetic_data)
-        return eval_model.score(x, y)
+        pred = eval_model.predict(x)
+        return accuracy_score(y, pred)
     
-    def sample(self, size=None, ohe=False):
+    def sample(self, size=None, ohe=False, verbose=1):
+        """
+        Generate synthetic data.
+
+        Parameters:
+        -----------------
+        size (int, optional): Size of the data to be generated. Use `None` for   to  Defaults to: attr:`None`.
+
+        ohe (bool, optional): Whether to convert the data into one-hot form.
+
+        TODO: verbose (int, optional): Whether to output the log. Use 1 for log output and 0 for complete silence.
+
+        Return:
+        -----------------
+        x, y (np.ndarray): Generated synthetic data.
+
+        """
+        if verbose is None or not isinstance(verbose, int):
+            verbose = 1
         #basic varibles
         d = self.__d
         feature_cards = np.array(d.feature_uniques)
@@ -98,7 +128,7 @@ class GANBLR:
         _idxs = np.cumsum([0] + d._kdbe.constraints_.tolist())
         constraint_idxs = [(_idxs[i],_idxs[i+1]) for i in range(len(_idxs)-1)]
         
-        probs = np.exp(self.gen_weights[0])
+        probs = np.exp(self.__gen_weights[0])
         cpd_probs = [probs[start:end,:] for start, end in constraint_idxs]
         cpd_probs = np.vstack([p/p.sum(axis=0) for p in cpd_probs])
     
@@ -139,10 +169,11 @@ class GANBLR:
         y_cpd = TabularCPD(y_name, d.num_classes, y_probs)
     
         #create kDB model, then sample data
+
         model = BayesianNetwork(edge_names)
         model.add_cpds(y_cpd, *feature_cpds)
         sample_size = d.data_size if size is None else size
-        result = BayesianModelSampling(model).forward_sample(size=sample_size)
+        result = BayesianModelSampling(model).forward_sample(size=sample_size, show_progress = verbose > 0)
         sorted_result = result[node_names].values
     
         #return
@@ -161,7 +192,7 @@ class GANBLR:
         self.constraints = softmax_weight(d.constraint_positions)
         elr = get_lr(ohex.shape[1], d.num_classes, self.constraints)
         history = elr.fit(ohex, d.y, batch_size=self.batch_size, epochs=epochs)
-        self.gen_weights = elr.get_weights()
+        self.__gen_weights = elr.get_weights()
         tf.keras.backend.clear_session()
         return history
 
@@ -172,8 +203,14 @@ class GANBLR:
         model = tf.keras.Sequential()
         model.add(tf.keras.layers.Dense(d.num_classes, input_dim=ohex.shape[1], activation='softmax',kernel_constraint=self.constraints))
         model.compile(loss=elr_loss(loss), optimizer='adam', metrics=['accuracy'])
-        model.set_weights(self.gen_weights)
+        model.set_weights(self.__gen_weights)
         history = model.fit(ohex, d.y, batch_size=self.batch_size,epochs=1)
-        self.gen_weights = model.get_weights()
+        self.__gen_weights = model.get_weights()
         tf.keras.backend.clear_session()
         return history
+    
+    def _discrim(self):
+        model = tf.keras.Sequential()
+        model.add(tf.keras.layers.Dense(1, input_dim=self.__d.num_features, activation='sigmoid'))
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+        return model

@@ -83,13 +83,13 @@ def sample(*arrays, n=None, frac=None, random_state=None):
         return arr0[idxs]
 
 DEMO_DATASETS = {
-    '': (
-        '',
-    ),
-    '': (
-        '',
-    )
+    'car': 'https://raw.githubusercontent.com/chriszhangpodo/discretizedata/main/car_val_encode.csv',
+    'adult': 'https://raw.githubusercontent.com/chriszhangpodo/discretizedata/main/adult-dm.csv'
 }
+
+def get_demo_data(name='car'):
+    assert(name in DEMO_DATASETS.keys())
+    return read_csv(DEMO_DATASETS[name], dtype=int)
 
 from .kdb import KdbHighOrderFeatureEncoder
 from sklearn.preprocessing import OneHotEncoder
