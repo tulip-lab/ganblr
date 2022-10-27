@@ -24,7 +24,7 @@ synthetic_data = model.sample(1000)
 # Install
 
 # Citation
-If you use CTGAN, please cite the following work:
+If you use GANBLR, please cite the following work:
 
 *Y. Zhang, N. A. Zaidi, J. Zhou and G. Li*, "GANBLR: A Tabular Data Generation Model," 2021 IEEE International Conference on Data Mining (ICDM), 2021, pp. 181-190, doi: 10.1109/ICDM51629.2021.00103.
 
