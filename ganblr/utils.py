@@ -48,7 +48,7 @@ def sample(*arrays, n=None, frac=None, random_state=None):
     --------------
     *arrays: arrays to be sampled.
 
-    n: int value, Number of random samples to generate.
+    n (int): Number of random samples to generate.
 
     frac: Float value between 0 and 1, Returns (float value * length of given arrays). frac cannot be used with n.
 

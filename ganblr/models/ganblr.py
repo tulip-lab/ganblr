@@ -1,6 +1,6 @@
-from .kdb import *
-from .kdb import _add_uniform
-from .utils import *
+from ..kdb import *
+from ..kdb import _add_uniform
+from ..utils import *
 from pgmpy.models import BayesianNetwork
 from pgmpy.sampling import BayesianModelSampling
 from pgmpy.factors.discrete import TabularCPD
@@ -45,7 +45,7 @@ class GANBLR:
         self.k = k
         self.batch_size = batch_size
         history = self._warmup_run(warmup_epochs)
-        syn_x, syn_y = self.sample(ohe=False) 
+        syn_x, syn_y = self.sample() 
         discriminator_label = np.hstack([np.ones(d.data_size), np.zeros(d.data_size)])
         for i in range(epochs):
             discriminator_input = np.vstack([x, syn_x])
@@ -55,7 +55,7 @@ class GANBLR:
             prob_fake = disc.predict(x)
             ls = np.mean(-np.log(np.subtract(1, prob_fake)))
             history = self._run_generator(loss=ls)
-            syn_x, syn_y = self.sample(ohe=False) 
+            syn_x, syn_y = self.sample() 
         
         return self
         
@@ -104,13 +104,13 @@ class GANBLR:
     
     def sample(self, size=None, ohe=False, verbose=1):
         """
-        Generate synthetic data.
+        Generate synthetic data.     
 
         Parameters:
         -----------------
-        size (int, optional): Size of the data to be generated. Use `None` for   to  Defaults to: attr:`None`.
+        size (int, optional): Size of the data to be generated. Defaults to: attr:`None`.
 
-        ohe (bool, optional): Whether to convert the data into one-hot form.
+        ohe (bool, optional): Whether to convert the data into one-hot form. Defaults to: attr:`False`.
 
         TODO: verbose (int, optional): Whether to output the log. Use 1 for log output and 0 for complete silence.
 

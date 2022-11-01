@@ -37,4 +37,11 @@ If you use GANBLR, please cite the following work:
     pages={181-190},  
     doi={10.1109/ICDM51629.2021.00103}
 }
+@inbook{ganblrpp,
+    author = {Yishuo Zhang and Nayyar Zaidi and Jiahui Zhou and Gang Li},
+    title = {<bold>GANBLR++</bold>: Incorporating Capacity to Generate Numeric Attributes and Leveraging Unrestricted Bayesian Networks},
+    booktitle = {Proceedings of the 2022 SIAM International Conference on Data Mining (SDM)},
+    pages = {298-306},
+    doi = {10.1137/1.9781611977172.34},
+}
 ```
