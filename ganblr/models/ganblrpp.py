@@ -140,14 +140,16 @@ class DMMDiscritizer:
                 inversed_x[cur_mode_idx] = sample_results
             
             inversed_data.append(inversed_x.reshape(-1, 1))
-            
+
         return self.__scaler.inverse_transform(np.hstack(inversed_data))
 
     @staticmethod
     def __sample_from_truncnorm(bins, mu, sigma, random_states): 
         sampled_results = np.zeros_like(bins, dtype=float)
         def __sampling(idx, range_min, range_max):
-            sampled_results[idx] = truncnorm.rvs(range_min, range_max, loc=mu, scale=sigma, size=np.sum(idx), random_states=random_states)
+            sampling_size = np.sum(idx)
+            if sampling_size != 0:
+                sampled_results[idx] = truncnorm.rvs(range_min, range_max, loc=mu, scale=sigma, size=sampling_size, random_states=random_states)
 
         __sampling(bins == 0, np.NINF,    -3 * sigma)
         __sampling(bins == 1, -3 * sigma, -2 * sigma)
