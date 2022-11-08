@@ -150,15 +150,16 @@ class DMMDiscritizer:
             sampling_size = np.sum(idx)
             if sampling_size != 0:
                 sampled_results[idx] = truncnorm.rvs(range_min, range_max, loc=mu, scale=sigma, size=sampling_size, random_states=random_states)
-
-        __sampling(bins == 0, np.NINF,    -3 * sigma)
-        __sampling(bins == 1, -3 * sigma, -2 * sigma)
-        __sampling(bins == 2, -2 * sigma,     -sigma)
-        __sampling(bins == 3, -sigma,              0)
-        __sampling(bins == 4, 0,               sigma)
-        __sampling(bins == 5, sigma,       2 * sigma)
-        __sampling(bins == 6, 2 * sigma,   3 * sigma)
-        __sampling(bins == 7, 3 * sigma,      np.inf)
+        
+        #shape param (min, max) of scipy.stats.truncnorm.rvs are still defined with respect to the standard normal
+        __sampling(bins == 0, np.NINF, -3)
+        __sampling(bins == 1, -3, -2)
+        __sampling(bins == 2, -2, -1)
+        __sampling(bins == 3, -1,  0)
+        __sampling(bins == 4, 0,   1)
+        __sampling(bins == 5, 1,   2)
+        __sampling(bins == 6, 2,   3)
+        __sampling(bins == 7, 3, np.inf)
         return sampled_results     
 
 class GANBLRPP:
