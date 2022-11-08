@@ -1,7 +1,9 @@
 from .ganblr import GANBLR
 from sklearn.mixture import BayesianGaussianMixture
-from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder, OrdinalEncoder
 from scipy.stats import truncnorm
+from itertools import product
+from copy import copy
 import numpy as np
 
 class DMMDiscritizer:
@@ -11,13 +13,15 @@ class DMMDiscritizer:
             n_components=2 * 5, reg_covar=0, init_params='random',
             max_iter=1500, mean_precision_prior=.1,
             random_state=random_state)
-        
+
         self.__scaler = MinMaxScaler()
-        self.__arr_lbes = []
+        self.__ordinal_encoder = OrdinalEncoder(dtype=int)
+        #self.__label_encoders = []
+        self.__dmms = []
         self.__arr_mu = []
-        self.__arr_mode = []
+        #self.__arr_mode = []
         self.__arr_sigma = []
-    
+
     def fit(self, x):
         """
         Do DMM Discritization.
@@ -35,33 +39,56 @@ class DMMDiscritizer:
         assert(len(x.shape) == 2)
 
         x_scaled = self.__scaler.fit_transform(x)
+        self.__internal_fit(x_scaled)
+        return self
+
+    def transform(self, x) -> np.ndarray:        
+        x = self.__scaler.transform(x)
+        arr_modes = []
+        for i, dmm in enumerate(self.__dmms):
+            modes = dmm.predict(x[:,i:i+1])
+            modes = LabelEncoder().fit_transform(modes)
+            arr_modes.append(modes)
+        return self.__internal_transform(x, arr_modes)
+
+    def fit_transform(self, x) -> np.ndarray:
+        assert(isinstance(x, np.ndarray))
+        assert(len(x.shape) == 2)
+
+        x_scaled = self.__scaler.fit_transform(x)
+        arr_modes = self.__internal_fit(x_scaled)
+        return self.__internal_transform(x_scaled, arr_modes)
+
+    def __internal_fit(self, x):
+        arr_mode = []
         for i in range(x.shape[1]):
-            cur_column = x_scaled[:,i:i+1]
-            y = self.__dmm.fit_predict(cur_column)
+            cur_column = x[:,i:i+1]
+            dmm = copy(self.__dmm)
+            y = dmm.fit_predict(cur_column)
             lbe = LabelEncoder().fit(y)
             mu  = self.__dmm.means_[:len(lbe.classes_)]
             sigma = np.sqrt(self.__dmm.covariances_[:len(lbe.classes_)])
 
-            self.__arr_mode.append(lbe.transform(y))
-            self.__arr_lbes.append(lbe)
+            arr_mode.append(lbe.transform(y))
+            #self.__arr_lbes.append(lbe)
+            self.__dmms.append(dmm)
             self.__arr_mu.append(mu.ravel())
             self.__arr_sigma.append(sigma.ravel())
-        return self
+        return arr_mode
 
-    def transform(self, x) -> np.ndarray:
+    def __internal_transform(self, x, arr_modes):
         _and = np.logical_and
         _not = np.logical_not
-        
-        x = self.__scaler.transform(x)
+
         discretized_data = []
-        for i, (mode, mu, sigma) in enumerate(zip(
-            self.__arr_mode,
+        for i, (modes, mu, sigma) in enumerate(zip(
+            arr_modes,
             self.__arr_mu, 
             self.__arr_sigma)):
 
             cur_column = x[:,i]
-            cur_mu     = mu[mode]
-            cur_sigma  = sigma[mode]
+            cur_mu     = mu[modes]
+            cur_sigma  = sigma[modes]
             x_std      = cur_column - cur_mu
 
             less_than_n3sigma = (x_std <= -3*cur_sigma)
@@ -72,67 +99,65 @@ class DMMDiscritizer:
             less_than_2sigma  = (x_std <=  2*cur_sigma)
             less_than_3sigma  = (x_std <=  3*cur_sigma)
             
+            base = 8 * modes
             discretized_x = np.full_like(cur_column, np.nan, dtype=int)
-            discretized_x[less_than_n3sigma]                                = 0
-            discretized_x[_and(_not(less_than_n3sigma), less_than_n2sigma)] = 1
-            discretized_x[_and(_not(less_than_n2sigma), less_than_n1sigma)] = 2
-            discretized_x[_and(_not(less_than_n1sigma), less_than_0)]       = 3
-            discretized_x[_and(_not(less_than_0)      , less_than_1sigma)]  = 4
-            discretized_x[_and(_not(less_than_1sigma) , less_than_2sigma)]  = 5
-            discretized_x[_and(_not(less_than_2sigma) , less_than_3sigma)]  = 6
-            discretized_x[_not(less_than_3sigma)]                           = 7
+            discretized_x[less_than_n3sigma]                                = base
+            discretized_x[_and(_not(less_than_n3sigma), less_than_n2sigma)] = base + 1
+            discretized_x[_and(_not(less_than_n2sigma), less_than_n1sigma)] = base + 2
+            discretized_x[_and(_not(less_than_n1sigma), less_than_0)]       = base + 3
+            discretized_x[_and(_not(less_than_0)      , less_than_1sigma)]  = base + 4
+            discretized_x[_and(_not(less_than_1sigma) , less_than_2sigma)]  = base + 5
+            discretized_x[_and(_not(less_than_2sigma) , less_than_3sigma)]  = base + 6
+            discretized_x[_not(less_than_3sigma)]                           = base + 7
             discretized_data.append(discretized_x.reshape(-1,1))
         
-        return np.hstack(discretized_data)
-    
+        return self.__ordinal_encoder.fit_transform(np.hstack(discretized_data))
+
     def inverse_transform(self, x) -> np.ndarray:
         def __assign(arr, flag, mu, sigma):
             arr[flag] = mu[flag] + sigma[flag]
-        _and = np.logical_and
-        _not = np.logical_not
-        data_size = len(x)
-
+        x = self.__ordinal_encoder.inverse_transform(x)
+        x_modes = x // 8
+        x_bins = x % 8
+            
         inversed_data = []
-        for i, (mode, mu, sigma) in enumerate(zip(
-            self.__arr_mode,
+        for i, (mu, sigma) in enumerate(zip(
             self.__arr_mu, 
             self.__arr_sigma)):
+           
+            cur_column_modes = x_modes[:,i]
+            cur_column_bins  = x_bins[:,i]
+            cur_column_mode_uniques    = np.unique(cur_column_modes)
 
-            cur_column = x[:,i]
-            cur_mu     = mu[mode]
-            cur_sigma  = sigma[mode]
+            inversed_x = np.zeros_like(cur_column_modes, dtype=float)      
 
-            range_min = np.zeros_like(cur_column)
-            range_max = np.zeros_like(cur_column)
-            inversed_x = np.zeros_like(cur_column, dtype=float)
+            for mode in cur_column_mode_uniques:
+                cur_mode_idx = cur_column_modes == mode
+                cur_mode_mu = mu[mode]
+                cur_mode_sigma = sigma[mode]
 
-            inversed_x[cur_column == 0] = truncnorm.rvs()
-            range_min[x == 0] = np.NINF
-            __assign(range_max, x == 0, mu, -3 * cur_sigma)
+                sample_results = self.__sample_from_truncnorm(cur_column_bins[cur_mode_idx], cur_mode_mu, cur_mode_sigma)
+                inversed_x[cur_mode_idx] = sample_results
             
-            __assign(range_min, x == 1, mu, -3 * cur_sigma)
-            __assign(range_max, x == 1, mu, -2 * cur_sigma)
+            inversed_data.append(inversed_x.reshape(-1, 1))
+            
+        return self.__scaler.inverse_transform(np.hstack(inversed_data))
 
-            __assign(range_min, x == 2, mu, -2 * cur_sigma)
-            __assign(range_max, x == 2, mu, -cur_sigma)
+    @staticmethod
+    def __sample_from_truncnorm(bins, mu, sigma, random_states): 
+        sampled_results = np.zeros_like(bins, dtype=float)
+        def __sampling(idx, range_min, range_max):
+            sampled_results[idx] = truncnorm.rvs(range_min, range_max, loc=mu, scale=sigma, size=np.sum(idx), random_states=random_states)
 
-            __assign(range_min, x == 3, mu, -cur_sigma)
-            __assign(range_max, x == 3, mu, 0)
-
-            __assign(range_min, x == 4, mu, 0)
-            __assign(range_max, x == 4, mu, cur_sigma)
-
-            __assign(range_min, x == 5, mu, cur_sigma)
-            __assign(range_max, x == 5, mu, 2 * cur_sigma)
-
-            __assign(range_min, x == 6, mu, 2 * cur_sigma)
-            __assign(range_max, x == 6, mu, 3 * cur_sigma)
-
-            __assign(range_min, x == 7, mu, 3 * cur_sigma)
-            range_max[x == 7] = np.Inf
-
-    def fit_transform(self, x) -> np.ndarray:
-        return self.fit(x).transform(x)
+        __sampling(bins == 0, np.NINF,    -3 * sigma)
+        __sampling(bins == 1, -3 * sigma, -2 * sigma)
+        __sampling(bins == 2, -2 * sigma,     -sigma)
+        __sampling(bins == 3, -sigma,              0)
+        __sampling(bins == 4, 0,               sigma)
+        __sampling(bins == 5, sigma,       2 * sigma)
+        __sampling(bins == 6, 2 * sigma,   3 * sigma)
+        __sampling(bins == 7, 3 * sigma,      np.inf)
+        return sampled_results     
 
 class GANBLRPP:
 
