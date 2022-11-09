@@ -1,4 +1,4 @@
-"""Top-level package for TGAN."""
+"""Top-level package for Ganblr."""
 
 __author__ = """Tulip Lab"""
 __email__ = 'jhzhou@tuliplab.academy'

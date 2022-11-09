@@ -45,17 +45,17 @@ class GANBLR:
         self.k = k
         self.batch_size = batch_size
         history = self._warmup_run(warmup_epochs)
-        syn_x, syn_y = self.sample() 
+        syn_data = self.sample() 
         discriminator_label = np.hstack([np.ones(d.data_size), np.zeros(d.data_size)])
         for i in range(epochs):
-            discriminator_input = np.vstack([x, syn_x])
+            discriminator_input = np.vstack([x, syn_data[:,:-1]])
             disc_input, disc_label = sample(discriminator_input, discriminator_label, frac=0.8)
             disc = self._discrim()
             disc.fit(disc_input, disc_label, batch_size=batch_size, epochs=1)
             prob_fake = disc.predict(x)
             ls = np.mean(-np.log(np.subtract(1, prob_fake)))
             history = self._run_generator(loss=ls)
-            syn_x, syn_y = self.sample() 
+            syn_data = self.sample() 
         
         return self
         
@@ -98,11 +98,11 @@ class GANBLR:
             raise Exception('Invalid Arugument')
         
         synthetic_data = self.sample()
-        eval_model.fit(*synthetic_data)
+        eval_model.fit(synthetic_data[:,:-1], synthetic_data[:,-1])
         pred = eval_model.predict(x)
         return accuracy_score(y, pred)
-    
-    def sample(self, size=None, ohe=False, verbose=1):
+
+    def sample(self, size=None, verbose=1):
         """
         Generate synthetic data.     
 
@@ -168,23 +168,16 @@ class GANBLR:
         y_probs = (d.class_counts/d.data_size).reshape(-1,1)
         y_cpd = TabularCPD(y_name, d.num_classes, y_probs)
     
-        #create kDB model, then sample data
-
+        #create kDB model, then sample the data
         model = BayesianNetwork(edge_names)
         model.add_cpds(y_cpd, *feature_cpds)
         sample_size = d.data_size if size is None else size
         result = BayesianModelSampling(model).forward_sample(size=sample_size, show_progress = verbose > 0)
         sorted_result = result[node_names].values
+         
+        return sorted_result
+        #syn_X, syn_y = sorted_result[:,:-1], sorted_result[:,-1]
     
-        #return
-        syn_X, syn_y = sorted_result[:,:-1], sorted_result[:,-1]
-        if ohe:
-            from sklearn.preprocessing import OneHotEncoder
-            ohe_syn_X = OneHotEncoder().fit_transform(syn_X)
-            return ohe_syn_X, syn_y
-        else:
-            return syn_X, syn_y
-
     def _warmup_run(self, epochs):
         d = self.__d
         tf.keras.backend.clear_session()

@@ -164,18 +164,23 @@ class DMMDiscritizer:
 
 class GANBLRPP:
 
-    def __init__(self):
+    def __init__(self, numerical_columns):
         self.__discritizer = DMMDiscritizer()
         self.__ganblr = GANBLR()
+        self._numerical_columns = numerical_columns
         pass
-
+    
     def fit(self, x, y, k=0, batch_size=32, epochs=10, warmup_epochs=1, verbose=1):
-        x = self.__discritizer.fit_transform(x)
+        numerical_columns = self._numerical_columns
+        x[numerical_columns] = self.__discritizer.fit_transform(x[numerical_columns])
         return self.__ganblr.fit(x, y, k, batch_size, epochs, warmup_epochs, verbose)
     
     def sample(self, size=None):
         synthetic_data = self.__ganblr.sample(size)
-        return self.__discritizer.inverse_transform(synthetic_data)
+        numerical_columns = self._numerical_columns
+        numerical_data = self.__discritizer.inverse_transform(synthetic_data[numerical_columns])
+        synthetic_data[numerical_columns] = numerical_data
+        return synthetic_data
 
     def evaluate(self):
         pass

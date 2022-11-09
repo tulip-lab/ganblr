@@ -254,6 +254,12 @@ class KdbHighOrderFeatureEncoder:
     def fit(self, X, y, k=0):
         '''
         build the kdb model, obtain the dependencies.
+
+        Parameters:
+        --------------
+        x, y(numpy.ndarray): the data to fit.
+
+        k(int， default 0): k value of the kdb model. k = 0 will lead to a OneHotEncoder.
         '''
         self.k = k
         edges = build_graph(X, y, k)
