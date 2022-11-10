@@ -65,7 +65,7 @@ class GANBLR:
         
         return self
         
-    def evaluate(self, x, y, model='lr', preprocesser='') -> float:
+    def evaluate(self, x, y, model='lr') -> float:
         """
         Perform a TSTR(Training on Synthetic data, Testing on Real data) evaluation.
 
@@ -104,7 +104,10 @@ class GANBLR:
             raise Exception('Invalid Arugument')
         
         synthetic_data = self._sample()
-        eval_model.fit(synthetic_data[:,:-1], synthetic_data[:,-1])
+        feature_uniques =  self.__d.feature_uniques
+        synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
+        ohe_synthetic_x = [np.eye(b)[synthetic_x[:,i]] for i, b in enumerate(feature_uniques)]
+        eval_model.fit(ohe_synthetic_x, synthetic_y)
         pred = eval_model.predict(x)
         return accuracy_score(y, pred)
     
