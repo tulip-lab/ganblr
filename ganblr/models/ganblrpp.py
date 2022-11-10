@@ -233,7 +233,7 @@ S
         syn_x[:,numerical_columns] = numerical_data
         return np.hstack([syn_x, syn_y])
 
-    def evaluate(self, x, y, model='lr', preprocesser=''):
+    def evaluate(self, x, y, model='lr'):
         """
         Perform a TSTR(Training on Synthetic data, Testing on Real data) evaluation.
 
@@ -249,4 +249,4 @@ S
         """
         numerical_columns = self._numerical_columns
         x[:,numerical_columns] = self.__discritizer.transform(x[:,numerical_columns])
-        return self.__ganblr.evaluate(x, y, model, preprocesser)
+        return self.__ganblr.evaluate(x, y, model)

@@ -83,33 +83,35 @@ class GANBLR:
         from sklearn.linear_model import LogisticRegression
         from sklearn.neural_network import MLPClassifier
         from sklearn.ensemble import RandomForestClassifier
-        from sklearn.preprocessing import StandardScaler
+        from sklearn.preprocessing import OneHotEncoder
         from sklearn.pipeline import Pipeline
         from sklearn.metrics import accuracy_score
         
         eval_model = None
         if model=='lr':
             eval_model = Pipeline([
-                ('scaler', StandardScaler()), 
+                ('scaler', OneHotEncoder(categories=self.__d._kdbe.ohe_.categories_)), 
                 ('lr',     LogisticRegression())]) 
         elif model == 'rf':
             eval_model = RandomForestClassifier()
         elif model == 'mlp':
             eval_model = Pipeline([
-                ('scaler', StandardScaler()), 
+                ('scaler', OneHotEncoder(categories=self.__d._kdbe.ohe_.categories_)), 
                 ('mlp',    MLPClassifier())]) 
         elif hasattr(model, 'fit'):
             eval_model = model
         else:
             raise Exception('Invalid Arugument')
         
+
         synthetic_data = self._sample()
-        feature_uniques =  self.__d.feature_uniques
         synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
-        ohe_synthetic_x = [np.eye(b)[synthetic_x[:,i]] for i, b in enumerate(feature_uniques)]
-        eval_model.fit(ohe_synthetic_x, synthetic_y)
-        pred = eval_model.predict(x)
-        return accuracy_score(y, pred)
+        x_test = self._ordinal_encoder.transform(x)
+        y_test = self._label_encoder.transform(y)
+
+        eval_model.fit(synthetic_x, synthetic_y)
+        pred = eval_model.predict(x_test)
+        return accuracy_score(y_test, pred)
     
     def sample(self, size=None, verbose=1) -> np.ndarray:
         """
