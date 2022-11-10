@@ -247,6 +247,45 @@ S
         --------
         accuracy score (float).
         """
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.neural_network import MLPClassifier
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.preprocessing import OneHotEncoder, StandardScaler
+        from sklearn.metrics import accuracy_score
+    
+        eval_model = None
+        if model=='lr':
+            eval_model = LogisticRegression() 
+        elif model == 'rf':
+            eval_model = RandomForestClassifier()
+        elif model == 'mlp':
+            eval_model = MLPClassifier() 
+        elif hasattr(model, 'fit'):
+            eval_model = model
+        else:
+            raise Exception('Invalid Arugument')
+
+        synthetic_data = self.sample()
+        synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
+
         numerical_columns = self._numerical_columns
-        x[:,numerical_columns] = self.__discritizer.transform(x[:,numerical_columns])
-        return self.__ganblr.evaluate(x, y, model)
+        catgorical_columns = np.argwhere([col not in numerical_columns for col in range(x.shape[1])])
+        ohe = OneHotEncoder(categories=self.__d._kdbe.ohe_.categories_)
+        lbe = self.__ganblr._label_encoder
+        scaler = StandardScaler()
+        
+        real_x_num = scaler.fit_transform(x[:,:numerical_columns])
+        syn_x_num  = scaler.fit_transform(synthetic_x[:,:numerical_columns])
+        if model != 'rf':
+            real_x_cat = ohe.transform(x[:,catgorical_columns])
+            syn_x_cat  = ohe.transform(synthetic_x[:,catgorical_columns])
+        else:
+            real_x_cat = x[:,catgorical_columns]
+            syn_x_cat = synthetic_x[:,catgorical_columns]
+        
+        real_y = lbe.transform(y)
+        syn_y  = lbe.transform(y)
+
+        eval_model.fit(np.hstack([syn_x_num, syn_x_cat]), syn_y)
+        pred = eval_model.predict(np.hstack([real_x_num, real_x_cat]))
+        return accuracy_score(real_y, pred)
