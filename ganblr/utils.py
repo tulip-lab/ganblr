@@ -115,7 +115,12 @@ class DataUtils:
         self._kdbe = None
 
         self.__kdbe_x = None
-    
+
+    def get_categories(self, idxs=None):
+        if idxs != None:
+            return [self._kdbe.ohe_.categories_[i] for i in idxs]
+        return self._kdbe.ohe_.categories_
+
     def get_kdbe_x(self, k=0, dense_format=True) -> np.ndarray:
         if self.__kdbe_x is not None:
             return self.__kdbe_x

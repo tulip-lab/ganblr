@@ -13,7 +13,7 @@ class GANBLR:
     The GANBLR Model.
     """
     def __init__(self) -> None:
-        self.__d = None
+        self._d = None
         self.__gen_weights = None
         self.batch_size = None
         self.epochs = None
@@ -45,24 +45,27 @@ class GANBLR:
             verbose = 1
         x = self._ordinal_encoder.fit_transform(x)
         y = self._label_encoder.fit_transform(y).astype(int)
-        print(x.dtype, y.dtype)
         d = DataUtils(x, y)
-        self.__d = d
+        self._d = d
         self.k = k
         self.batch_size = batch_size
-        history = self._warmup_run(warmup_epochs)
+        if verbose:
+            print(f"warmup run:")
+        history = self._warmup_run(warmup_epochs, verbose=verbose)
         syn_data = self._sample(verbose=0)
         discriminator_label = np.hstack([np.ones(d.data_size), np.zeros(d.data_size)])
         for i in range(epochs):
             discriminator_input = np.vstack([x, syn_data[:,:-1]])
             disc_input, disc_label = sample(discriminator_input, discriminator_label, frac=0.8)
             disc = self._discrim()
-            disc_history = disc.fit(disc_input, disc_label, batch_size=batch_size, epochs=1)
-            prob_fake = disc.predict(x)
+            d_history = disc.fit(disc_input, disc_label, batch_size=batch_size, epochs=1, verbose=0).history
+            prob_fake = disc.predict(x, verbose=0)
             ls = np.mean(-np.log(np.subtract(1, prob_fake)))
-            history = self._run_generator(loss=ls)
+            g_history = self._run_generator(loss=ls).history
             syn_data = self._sample(verbose=0)
-        
+            
+            if verbose:
+                print(f"Epoch {i+1}/{epochs}: G_loss = {g_history['loss'][0]}, G_accuracy = {g_history['accuracy'][0]}, D_loss = {d_history['loss'][0]}, D_accuracy = {d_history['accuracy'][0]}")
         return self
         
     def evaluate(self, x, y, model='lr') -> float:
@@ -90,13 +93,13 @@ class GANBLR:
         eval_model = None
         if model=='lr':
             eval_model = Pipeline([
-                ('scaler', OneHotEncoder(categories=self.__d._kdbe.ohe_.categories_)), 
+                ('scaler', OneHotEncoder(categories=self._d._kdbe.ohe_.categories_)), 
                 ('lr',     LogisticRegression())]) 
         elif model == 'rf':
             eval_model = RandomForestClassifier()
         elif model == 'mlp':
             eval_model = Pipeline([
-                ('scaler', OneHotEncoder(categories=self.__d._kdbe.ohe_.categories_)), 
+                ('scaler', OneHotEncoder(categories=self._d._kdbe.ohe_.categories_)), 
                 ('mlp',    MLPClassifier())]) 
         elif hasattr(model, 'fit'):
             eval_model = model
@@ -140,7 +143,7 @@ class GANBLR:
         if verbose is None or not isinstance(verbose, int):
             verbose = 1
         #basic varibles
-        d = self.__d
+        d = self._d
         feature_cards = np.array(d.feature_uniques)
         #ensure sum of each constraint group equals to 1, then re concat the probs
         _idxs = np.cumsum([0] + d._kdbe.constraints_.tolist())
@@ -195,32 +198,32 @@ class GANBLR:
         
         return sorted_result
     
-    def _warmup_run(self, epochs):
-        d = self.__d
+    def _warmup_run(self, epochs, verbose=None):
+        d = self._d
         tf.keras.backend.clear_session()
         ohex = d.get_kdbe_x(self.k)
         self.constraints = softmax_weight(d.constraint_positions)
         elr = get_lr(ohex.shape[1], d.num_classes, self.constraints)
-        history = elr.fit(ohex, d.y, batch_size=self.batch_size, epochs=epochs)
+        history = elr.fit(ohex, d.y, batch_size=self.batch_size, epochs=epochs, verbose=verbose)
         self.__gen_weights = elr.get_weights()
         tf.keras.backend.clear_session()
         return history
 
     def _run_generator(self, loss):
-        d = self.__d
+        d = self._d
         ohex = d.get_kdbe_x(self.k)
         tf.keras.backend.clear_session()
         model = tf.keras.Sequential()
         model.add(tf.keras.layers.Dense(d.num_classes, input_dim=ohex.shape[1], activation='softmax',kernel_constraint=self.constraints))
         model.compile(loss=elr_loss(loss), optimizer='adam', metrics=['accuracy'])
         model.set_weights(self.__gen_weights)
-        history = model.fit(ohex, d.y, batch_size=self.batch_size,epochs=1)
+        history = model.fit(ohex, d.y, batch_size=self.batch_size,epochs=1, verbose=0)
         self.__gen_weights = model.get_weights()
         tf.keras.backend.clear_session()
         return history
     
     def _run_generator_tf(self, loss):
-        d = self.__d
+        d = self._d
         ohex = d.get_kdbe_x(self.k)
         tf.keras.backend.clear_session()
         model = tf.keras.Sequential()
@@ -235,6 +238,6 @@ class GANBLR:
     
     def _discrim(self):
         model = tf.keras.Sequential()
-        model.add(tf.keras.layers.Dense(1, input_dim=self.__d.num_features, activation='sigmoid'))
+        model.add(tf.keras.layers.Dense(1, input_dim=self._d.num_features, activation='sigmoid'))
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
         return model

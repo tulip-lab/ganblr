@@ -18,6 +18,7 @@ class DMMDiscritizer:
         self.__dmms = []
         self.__arr_mu = []
         self.__arr_sigma = []
+        self._random_state = random_state
 
     def fit(self, x):
         """
@@ -44,7 +45,7 @@ class DMMDiscritizer:
         arr_modes = []
         for i, dmm in enumerate(self.__dmms):
             modes = dmm.predict(x[:,i:i+1])
-            modes = LabelEncoder().fit_transform(modes)
+            modes = LabelEncoder().fit_transform(modes)#.astype(int)
             arr_modes.append(modes)
         return self.__internal_transform(x, arr_modes)
 
@@ -66,7 +67,7 @@ class DMMDiscritizer:
             mu  = dmm.means_[:len(lbe.classes_)]
             sigma = np.sqrt(dmm.covariances_[:len(lbe.classes_)])
 
-            arr_mode.append(lbe.transform(y))
+            arr_mode.append(lbe.transform(y))#.astype(int))
             #self.__arr_lbes.append(lbe)
             self.__dmms.append(dmm)
             self.__arr_mu.append(mu.ravel())
@@ -109,12 +110,11 @@ class DMMDiscritizer:
         #return self.__ordinal_encoder.fit_transform(np.hstack(discretized_data))
         return np.hstack(discretized_data)
 
-    def inverse_transform(self, x, n_jobs=-1, verbose=1) -> np.ndarray:
-        #x = self.__ordinal_encoder.inverse_transform(x)
+    def inverse_transform(self, x, verbose=1) -> np.ndarray:
         x_modes = x // 8
         x_bins = x % 8
-            
-        def __parallel_unit(i, mu, sigma):
+        
+        def __sample_one_column(i, mu, sigma):
             cur_column_modes = x_modes[:,i]
             cur_column_bins  = x_bins[:,i]
             cur_column_mode_uniques    = np.unique(cur_column_modes)
@@ -125,43 +125,31 @@ class DMMDiscritizer:
                 cur_mode_mu = mu[mode]
                 cur_mode_sigma = sigma[mode]
 
-                sample_results = self.__sample_from_truncnorm(cur_column_bins[cur_mode_idx], cur_mode_mu, cur_mode_sigma)
+                sample_results = self.__sample_from_truncnorm(cur_column_bins[cur_mode_idx], cur_mode_mu, cur_mode_sigma, random_state=self._random_state)
                 inversed_x[cur_mode_idx] = sample_results
 
             return inversed_x.reshape(-1,1)
         
-        inversed_data = np.hstack(Parallel(n_jobs=n_jobs, verbose=verbose)(delayed(__parallel_unit)(i, mu, sigma)
-            for i, (mu, sigma) in enumerate(self.__arr_mu, self.__arr_sigma)))
-
-        #for i, (mu, sigma) in enumerate(zip(
-        #    self.__arr_mu, 
-        #    self.__arr_sigma)):
-        #   
-        #    cur_column_modes = x_modes[:,i]
-        #    cur_column_bins  = x_bins[:,i]
-        #    cur_column_mode_uniques    = np.unique(cur_column_modes)
-
-        #    inversed_x = np.zeros_like(cur_column_modes, dtype=float)      
-
-        #    for mode in cur_column_mode_uniques:
-        #        cur_mode_idx = cur_column_modes == mode
-        #        cur_mode_mu = mu[mode]
-        #        cur_mode_sigma = sigma[mode]
-
-        #        sample_results = self.__sample_from_truncnorm(cur_column_bins[cur_mode_idx], cur_mode_mu, cur_mode_sigma)
-        #        inversed_x[cur_mode_idx] = sample_results
-        #    
-        #    inversed_data.append(inversed_x.reshape(-1, 1))
-
+        if verbose:
+            from tqdm import tqdm
+            _progress_wrapper = lambda iterable: tqdm(iterable, desc='sampling', total=len(self.__arr_mu))
+        else:
+            _progress_wrapper = lambda iterable: iterable
+        inversed_data = np.hstack([__sample_one_column(i, mu, sigma)
+            for i, (mu, sigma) in _progress_wrapper(enumerate(zip(self.__arr_mu, self.__arr_sigma)))])
+        
+        #the sampling progress is fast enough so there is no need for parallelization
+        #inversed_data = np.hstack(Parallel(n_jobs=n_jobs, verbose=verbose)(delayed(__sample_one_column)(i, mu, sigma)
+        #    for i, (mu, sigma) in enumerate(zip(self.__arr_mu, self.__arr_sigma))))
         return self.__scaler.inverse_transform(inversed_data)
 
     @staticmethod
-    def __sample_from_truncnorm(bins, mu, sigma, random_states): 
+    def __sample_from_truncnorm(bins, mu, sigma, random_state=None): 
         sampled_results = np.zeros_like(bins, dtype=float)
         def __sampling(idx, range_min, range_max):
             sampling_size = np.sum(idx)
             if sampling_size != 0:
-                sampled_results[idx] = truncnorm.rvs(range_min, range_max, loc=mu, scale=sigma, size=sampling_size, random_states=random_states)
+                sampled_results[idx] = truncnorm.rvs(range_min, range_max, loc=mu, scale=sigma, size=sampling_size, random_state=random_state)
         
         #shape param (min, max) of scipy.stats.truncnorm.rvs are still defined with respect to the standard normal
         __sampling(bins == 0, np.NINF, -3)
@@ -172,7 +160,7 @@ class DMMDiscritizer:
         __sampling(bins == 5, 1,   2)
         __sampling(bins == 6, 2,   3)
         __sampling(bins == 7, 3, np.inf)
-        return sampled_results     
+        return sampled_results
 
 class GANBLRPP:
 
@@ -222,14 +210,14 @@ S
 
         """
         if verbose:
-            print('Step 1 of 2: Sampling discrete data from GANBLR.')
+            print('Step 1/2: Sampling discrete data from GANBLR.')
         ordinal_data = self.__ganblr._sample(size, verbose=verbose)
         syn_x = self.__ganblr._ordinal_encoder.inverse_transform(ordinal_data[:,:-1])
         syn_y = self.__ganblr._label_encoder.inverse_transform(ordinal_data[:,-1]).reshape(-1,1)
         if verbose:
-            print('step 2 of 2: Sampling numerical data.')
+            print('step 2/2: Sampling numerical data.')
         numerical_columns = self._numerical_columns
-        numerical_data = self.__discritizer.inverse_transform(syn_x[:,numerical_columns], n_jobs=1)
+        numerical_data = self.__discritizer.inverse_transform(syn_x[:,numerical_columns].astype(int))
         syn_x[:,numerical_columns] = numerical_data
         return np.hstack([syn_x, syn_y])
 
@@ -269,22 +257,22 @@ S
         synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
 
         numerical_columns = self._numerical_columns
-        catgorical_columns = np.argwhere([col not in numerical_columns for col in range(x.shape[1])])
-        ohe = OneHotEncoder(categories=self.__d._kdbe.ohe_.categories_)
+        catgorical_columns = list(set(range(x.shape[1])) - set(numerical_columns))
+        ohe = OneHotEncoder(categories=self.__ganblr._d.get_categories(catgorical_columns))
         lbe = self.__ganblr._label_encoder
         scaler = StandardScaler()
         
-        real_x_num = scaler.fit_transform(x[:,:numerical_columns])
-        syn_x_num  = scaler.fit_transform(synthetic_x[:,:numerical_columns])
+        real_x_num = scaler.fit_transform(x[:,numerical_columns])
+        syn_x_num  = scaler.fit_transform(synthetic_x[:,numerical_columns])
         if model != 'rf':
-            real_x_cat = ohe.transform(x[:,catgorical_columns])
-            syn_x_cat  = ohe.transform(synthetic_x[:,catgorical_columns])
+            real_x_cat = ohe.fit_transform(x[:,catgorical_columns])
+            syn_x_cat  = ohe.fit_transform(synthetic_x[:,catgorical_columns])
         else:
             real_x_cat = x[:,catgorical_columns]
             syn_x_cat = synthetic_x[:,catgorical_columns]
         
         real_y = lbe.transform(y)
-        syn_y  = lbe.transform(y)
+        syn_y  = lbe.transform(synthetic_y)
 
         eval_model.fit(np.hstack([syn_x_num, syn_x_cat]), syn_y)
         pred = eval_model.predict(np.hstack([real_x_num, real_x_cat]))
