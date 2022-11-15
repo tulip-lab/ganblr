@@ -3,24 +3,47 @@
 GANBLR is a tabular data generation model...
 # Usage Example
 
-In this example we load the [Car Dataset](https://archive.ics.uci.edu/ml/datasets/car+evaluation)* which is a built-in demo dataset. We use GANBLR to learn from the real data and then generate some synthetic data.
+In this example we load the [Adult Dataset](https://archive.ics.uci.edu/ml/datasets/Adult)* which is a built-in demo dataset. We use `GANBLR` to learn from the real data and then generate some synthetic data.
 
 ```python3
 from ganblr.utils import get_demo_data
 from ganblr.ganblr import GANBLR
 from sklearn.preprocessing import OrdinalEncoder 
 
-df = get_demo_data('car')
-data = OrdinalEncoder(dtype=int).fit_transform(df)
-x, y = data[:,:-1], data[:,-1]
+# this is a discrete version of adult since GANBLR requires discrete data.
+df = get_demo_data('adult')
+x, y = df.values[:,:-1], df.values[:,-1]
 
 model = GANBLR()
-model.fit(x, y, epochs = 50)
+model.fit(x, y, epochs = 10)
 
 #generate synthetic data
 synthetic_data = model.sample(1000)
 ```
 
+The steps to generate manual data using `GANBLR++` are similar to `GANBLR`, but require an additional parameter `numerical_columns` to tell the model the index of the numerical columns.
+
+```python3
+from ganblr.utils import get_demo_data
+from ganblr.ganblr import GANBLRPP
+import numpy as np
+
+# raw adult
+df = get_demo_data('adult-raw')
+x, y = df.values[:,:-1], df.values[:,-1]
+
+def is_numerical(dtype):
+    return dtype.kind in 'iuf'
+
+column_is_numerical = df.dtypes.apply(is_numerical).values
+numerical_columns = np.argwhere(column_is_numerical).ravel()
+
+model = GANBLRPP()
+model.fit(x, y, epochs = 10)
+
+#generate synthetic data
+synthetic_data = model.sample(1000)
+```
 # Install
 
 # Citation
