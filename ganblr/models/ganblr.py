@@ -19,7 +19,7 @@ class GANBLR:
         self.epochs = None
         self.k = None
         self.constraints = None
-        self._ordinal_encoder = OrdinalEncoder(dtype=int, handle_unknown='use_encoded_value', unknown_value='-99')
+        self._ordinal_encoder = OrdinalEncoder(dtype=int, handle_unknown='use_encoded_value', unknown_value=-1)
         self._label_encoder   = LabelEncoder()
     
     def fit(self, x, y, k=0, batch_size=32, epochs=10, warmup_epochs=1, verbose=1):
@@ -65,7 +65,7 @@ class GANBLR:
             syn_data = self._sample(verbose=0)
             
             if verbose:
-                print(f"Epoch {i+1}/{epochs}: G_loss = {g_history['loss'][0]}, G_accuracy = {g_history['accuracy'][0]}, D_loss = {d_history['loss'][0]}, D_accuracy = {d_history['accuracy'][0]}")
+                print(f"Epoch {i+1}/{epochs}: G_loss = {g_history['loss'][0]:.6f}, G_accuracy = {g_history['accuracy'][0]:.6f}, D_loss = {d_history['loss'][0]:.6f}, D_accuracy = {d_history['accuracy'][0]:.6f}")
         return self
         
     def evaluate(self, x, y, model='lr') -> float:
@@ -76,7 +76,7 @@ class GANBLR:
         ------------------
          x, y (numpy.ndarray): test dataset.
 
-         model: the model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model class that have sklearn-style 'fit' method.
+         model: the model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model class that have sklearn-style `fit` and `predict` method.
 
         Return:
         --------
@@ -91,30 +91,27 @@ class GANBLR:
         from sklearn.metrics import accuracy_score
         
         eval_model = None
-        if model=='lr':
-            eval_model = Pipeline([
-                ('scaler', OneHotEncoder(categories=self._d.get_categories())), 
-                ('lr',     LogisticRegression())]) 
-        elif model == 'rf':
-            eval_model = RandomForestClassifier()
-        elif model == 'mlp':
-            eval_model = Pipeline([
-                ('scaler', OneHotEncoder(categories=self._d.get_categories())), 
-                ('mlp',    MLPClassifier())]) 
+        models = dict(
+            lr=LogisticRegression,
+            rf=RandomForestClassifier,
+            mlp=MLPClassifier
+        )
+        if model in models.keys():
+            eval_model = models[model]()
         elif hasattr(model, 'fit') and hasattr(model, 'predict'):
             eval_model = model
         else:
-            raise Exception('Invalid Arugument')
-        
+            raise Exception("Invalid Arugument `model`, Should be one of ['lr', 'mlp', 'rf'], or a model class that have sklearn-style `fit` and `predict` method.")
 
         synthetic_data = self._sample()
         synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
         x_test = self._ordinal_encoder.transform(x)
-        x_test = x_test[x_test != -99]
         y_test = self._label_encoder.transform(y)
 
-        eval_model.fit(synthetic_x, synthetic_y)
-        pred = eval_model.predict(x_test)
+        categories = self._d.get_categories()
+        pipline = Pipeline([('encoder', OneHotEncoder(categories=categories, handle_unknown='ignore')), ('model',  eval_model)]) 
+        pipline.fit(synthetic_x, synthetic_y)
+        pred = pipline.predict(x_test)
         return accuracy_score(y_test, pred)
     
     def sample(self, size=None, verbose=1) -> np.ndarray:

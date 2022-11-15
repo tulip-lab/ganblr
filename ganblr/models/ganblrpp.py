@@ -2,8 +2,6 @@ from .ganblr import GANBLR
 from sklearn.mixture import BayesianGaussianMixture
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder, OrdinalEncoder
 from scipy.stats import truncnorm
-from joblib import delayed, Parallel
-from itertools import product
 import numpy as np
 
 class DMMDiscritizer:
@@ -254,30 +252,27 @@ S
             eval_model = model
         else:
             raise Exception('Invalid Arugument')
-        
+        numerical_columns = self._numerical_columns
+        catgorical_columns = list(set(range(x.shape[1])) - set(numerical_columns))  
+        categories = self.__ganblr._d.get_categories(catgorical_columns)
+
         synthetic_data = self.sample()
         synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
         
-        
-        numerical_columns = self._numerical_columns
-        catgorical_columns = list(set(range(x.shape[1])) - set(numerical_columns))
-        #ode = OrdinalEncoder(categories=self.__ganblr._d.get_categories(catgorical_columns))
-        ohe = OneHotEncoder(categories=self.__ganblr._d.get_categories(catgorical_columns), sparse=False)
+        ohe = OneHotEncoder(categories=categories, sparse=False, handle_unknown='ignore')
+        syn_x_ohe  = ohe.fit_transform(synthetic_x[:,catgorical_columns])
+        real_x_ohe = ohe.transform(x[:,catgorical_columns])
+        syn_x_num  = synthetic_x[:,numerical_columns]
+        real_x_num = x[:,numerical_columns]
+
+        scaler = StandardScaler()        
+        syn_x_concat  = scaler.fit_transform(np.hstack([syn_x_num, syn_x_ohe]))
+        real_x_concat = scaler.transform(np.hstack([real_x_num, real_x_ohe]))     
+
         lbe = self.__ganblr._label_encoder
-        scaler = StandardScaler()
-        
-        real_x_num = scaler.fit_transform(x[:,numerical_columns])
-        syn_x_num  = scaler.fit_transform(synthetic_x[:,numerical_columns])
-        if model != 'rf':
-            real_x_cat = ohe.fit_transform(x[:,catgorical_columns])
-            syn_x_cat  = ohe.fit_transform(synthetic_x[:,catgorical_columns])
-        else:
-            real_x_cat = x[:,catgorical_columns]
-            syn_x_cat = synthetic_x[:,catgorical_columns]
-        
         real_y = lbe.transform(y)
         syn_y  = lbe.transform(synthetic_y)
 
-        eval_model.fit(np.hstack([syn_x_num, syn_x_cat]), syn_y)
-        pred = eval_model.predict(np.hstack([real_x_num, real_x_cat]))
+        eval_model.fit(syn_x_concat, syn_y)
+        pred = eval_model.predict(real_x_concat)
         return accuracy_score(real_y, pred)

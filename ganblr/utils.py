@@ -1,4 +1,4 @@
-from tensorflow.python.ops import math_ops, array_ops
+from tensorflow.python.ops import math_ops
 import numpy as np
 import tensorflow as tf
 
@@ -83,13 +83,21 @@ def sample(*arrays, n=None, frac=None, random_state=None):
         return arr0[idxs]
 
 DEMO_DATASETS = {
-    'car': 'https://raw.githubusercontent.com/chriszhangpodo/discretizedata/main/car_val_encode.csv',
-    'adult': 'https://raw.githubusercontent.com/chriszhangpodo/discretizedata/main/adult-dm.csv'
+    'adult': {
+        'link':'https://raw.githubusercontent.com/chriszhangpodo/discretizedata/main/adult-dm.csv',
+        'params': {
+            'dtype' : int
+        }
+    },
+    'adult-raw':{
+        'link':'https://drive.google.com/uc?export=download&id=1iA-_qIC1xKQJ4nL2ugX1_XJQf8__xOY0',
+        'params': {}
+    }
 }
 
-def get_demo_data(name='car'):
+def get_demo_data(name='adult'):
     assert(name in DEMO_DATASETS.keys())
-    return read_csv(DEMO_DATASETS[name], dtype=int)
+    return read_csv(DEMO_DATASETS[name]['link'], **DEMO_DATASETS[name]['params'])
 
 from .kdb import KdbHighOrderFeatureEncoder
 from sklearn.preprocessing import OneHotEncoder
