@@ -14,7 +14,6 @@ class DMMDiscritizer:
             random_state=random_state)
 
         self.__scaler = MinMaxScaler()
-        #self.__ordinal_encoder = OrdinalEncoder(dtype=int)
         self.__dmms = []
         self.__arr_mu = []
         self.__arr_sigma = []
@@ -26,7 +25,7 @@ class DMMDiscritizer:
 
         Parameter:
         ---------
-        x (2d np.numpy): data to be discritize. must bu numeric data.
+        x (2d np.numpy): data to be discritize. Must bu numeric data.
 
         Return:
         ----------
@@ -58,6 +57,10 @@ class DMMDiscritizer:
         return self.__internal_transform(x_scaled, arr_modes)
 
     def __internal_fit(self, x):
+        self.__dmms.clear()
+        self.__arr_mu.clear()
+        self.__arr_sigma.clear()
+
         arr_mode = []
         for i in range(x.shape[1]):
             cur_column = x[:,i:i+1]
@@ -107,7 +110,6 @@ class DMMDiscritizer:
             discretized_x[_not(less_than_3sigma)]                           += 7
             discretized_data.append(discretized_x.reshape(-1,1))
         
-        #return self.__ordinal_encoder.fit_transform(np.hstack(discretized_data))
         return np.hstack(discretized_data)
 
     def inverse_transform(self, x, verbose=1) -> np.ndarray:
@@ -218,7 +220,7 @@ S
             print('step 2/2: Sampling numerical data.')
         numerical_columns = self._numerical_columns
         numerical_data = self.__discritizer.inverse_transform(syn_x[:,numerical_columns].astype(int))
-        syn_x[:,numerical_columns] = numerical_data
+        syn_x[:,numerical_columns] = numerical_data 
         return np.hstack([syn_x, syn_y])
 
     def evaluate(self, x, y, model='lr'):
@@ -229,7 +231,7 @@ S
         ------------------
          x, y (numpy.ndarray): test dataset.
 
-         model: the model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model class that have sklearn-style 'fit' method.
+         model: the model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model object that have `fit` and `predict` method.
 
         Return:
         --------
@@ -238,7 +240,7 @@ S
         from sklearn.linear_model import LogisticRegression
         from sklearn.neural_network import MLPClassifier
         from sklearn.ensemble import RandomForestClassifier
-        from sklearn.preprocessing import OneHotEncoder, StandardScaler
+        from sklearn.preprocessing import OneHotEncoder, StandardScaler, OrdinalEncoder
         from sklearn.metrics import accuracy_score
     
         eval_model = None
@@ -248,17 +250,19 @@ S
             eval_model = RandomForestClassifier()
         elif model == 'mlp':
             eval_model = MLPClassifier() 
-        elif hasattr(model, 'fit'):
+        elif hasattr(model, 'fit') and hasattr(model, 'predict'):
             eval_model = model
         else:
             raise Exception('Invalid Arugument')
-
+        
         synthetic_data = self.sample()
         synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
-
+        
+        
         numerical_columns = self._numerical_columns
         catgorical_columns = list(set(range(x.shape[1])) - set(numerical_columns))
-        ohe = OneHotEncoder(categories=self.__ganblr._d.get_categories(catgorical_columns))
+        #ode = OrdinalEncoder(categories=self.__ganblr._d.get_categories(catgorical_columns))
+        ohe = OneHotEncoder(categories=self.__ganblr._d.get_categories(catgorical_columns), sparse=False)
         lbe = self.__ganblr._label_encoder
         scaler = StandardScaler()
         

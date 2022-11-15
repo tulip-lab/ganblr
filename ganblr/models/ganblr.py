@@ -19,7 +19,7 @@ class GANBLR:
         self.epochs = None
         self.k = None
         self.constraints = None
-        self._ordinal_encoder = OrdinalEncoder(dtype=int)
+        self._ordinal_encoder = OrdinalEncoder(dtype=int, handle_unknown='use_encoded_value', unknown_value='-99')
         self._label_encoder   = LabelEncoder()
     
     def fit(self, x, y, k=0, batch_size=32, epochs=10, warmup_epochs=1, verbose=1):
@@ -93,15 +93,15 @@ class GANBLR:
         eval_model = None
         if model=='lr':
             eval_model = Pipeline([
-                ('scaler', OneHotEncoder(categories=self._d._kdbe.ohe_.categories_)), 
+                ('scaler', OneHotEncoder(categories=self._d.get_categories())), 
                 ('lr',     LogisticRegression())]) 
         elif model == 'rf':
             eval_model = RandomForestClassifier()
         elif model == 'mlp':
             eval_model = Pipeline([
-                ('scaler', OneHotEncoder(categories=self._d._kdbe.ohe_.categories_)), 
+                ('scaler', OneHotEncoder(categories=self._d.get_categories())), 
                 ('mlp',    MLPClassifier())]) 
-        elif hasattr(model, 'fit'):
+        elif hasattr(model, 'fit') and hasattr(model, 'predict'):
             eval_model = model
         else:
             raise Exception('Invalid Arugument')
@@ -110,6 +110,7 @@ class GANBLR:
         synthetic_data = self._sample()
         synthetic_x, synthetic_y = synthetic_data[:,:-1], synthetic_data[:,-1]
         x_test = self._ordinal_encoder.transform(x)
+        x_test = x_test[x_test != -99]
         y_test = self._label_encoder.transform(y)
 
         eval_model.fit(synthetic_x, synthetic_y)
@@ -221,20 +222,6 @@ class GANBLR:
         self.__gen_weights = model.get_weights()
         tf.keras.backend.clear_session()
         return history
-    
-    def _run_generator_tf(self, loss):
-        d = self._d
-        ohex = d.get_kdbe_x(self.k)
-        tf.keras.backend.clear_session()
-        model = tf.keras.Sequential()
-        model.add(tf.keras.layers.Dense(d.num_classes, input_dim=ohex.shape[1], activation='softmax',kernel_constraint=self.constraints))
-        model.compile(loss=elr_loss(loss), optimizer='adam', metrics=['accuracy'])
-        model.set_weights(self.__gen_weights)
-        history = model.fit(ohex, d.y, batch_size=self.batch_size,epochs=1)
-        self.__gen_weights = model.get_weights()
-        tf.keras.backend.clear_session()
-        return history
-
     
     def _discrim(self):
         model = tf.keras.Sequential()
