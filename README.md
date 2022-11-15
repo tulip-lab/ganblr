@@ -45,6 +45,20 @@ synthetic_data = model.sample(1000)
 ```
 # Install
 
+We recommend you to install ganblr through pip:
+
+```
+pip install ganblr
+```
+
+Alternatively, you can also clone the repository and install it from sources.
+
+```
+git clone git@github.com:tulip-lab/ganblr.git
+cd ganblr
+python setup.py install
+```
+
 # Citation
 If you use GANBLR, please cite the following work:
 
