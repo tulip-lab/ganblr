@@ -37,13 +37,27 @@ def is_numerical(dtype):
 column_is_numerical = df.dtypes.apply(is_numerical).values
 numerical_columns = np.argwhere(column_is_numerical).ravel()
 
-model = GANBLRPP()
+model = GANBLRPP(numerical_columns)
 model.fit(x, y, epochs = 10)
 
 #generate synthetic data
 synthetic_data = model.sample(1000)
 ```
 # Install
+
+We recommend you to install ganblr through pip:
+
+```
+pip install ganblr
+```
+
+Alternatively, you can also clone the repository and install it from sources.
+
+```
+git clone git@github.com:tulip-lab/ganblr.git
+cd ganblr
+python setup.py install
+```
 
 # Citation
 If you use GANBLR, please cite the following work:
