@@ -37,7 +37,7 @@ def is_numerical(dtype):
 column_is_numerical = df.dtypes.apply(is_numerical).values
 numerical_columns = np.argwhere(column_is_numerical).ravel()
 
-model = GANBLRPP()
+model = GANBLRPP(numerical_columns)
 model.fit(x, y, epochs = 10)
 
 #generate synthetic data
