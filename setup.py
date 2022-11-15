@@ -12,7 +12,7 @@ except Exception as e:
 setup(
     name = "ganblr",
     version = "0.1.0",
-    keywords = ("ganblr", "tulip"),
+    keywords = ["ganblr", "tulip"],
     description = "Ganblr Toolbox",
     long_description = long_description,
     long_description_content_type='text/markdown',
@@ -25,7 +25,7 @@ setup(
 
     packages = find_packages(),
     include_package_data = True,
-    install_requires = ["numpy", "tensorflow>=2.3", "pyitlab", "pgmpy"],
+    install_requires = ["numpy", "tensorflow>=2.3", "scikit-learn>=0.24", "pyitlab", "pgmpy"],
     platforms = "any",
 
     scripts = [],
