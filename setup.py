@@ -19,15 +19,21 @@ setup(
     python_requires=">=3.5.0",
     license = "MIT Licence",
 
-    url = "https://github.com/tulip-lab/ganblr-toolbox",
+    url = "https://github.com/tulip-lab/ganblr",
     author = "kae zhou",
     author_email = "kaezhou@gmail.com",
 
     packages = find_packages(),
     include_package_data = True,
-    install_requires = ["numpy", "tensorflow>=2.3", "scikit-learn>=0.24", "pyitlib", "pgmpy"],
+    install_requires = ["numpy", "pandas", "tensorflow>=2.3", "scikit-learn>=0.24", "pyitlib", "pgmpy"],
     platforms = "any",
 
     scripts = [],
-    entry_points = {}
+    entry_points = {},
+
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ]
 )

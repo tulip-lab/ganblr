@@ -7,7 +7,7 @@ In this example we load the [Adult Dataset](https://archive.ics.uci.edu/ml/datas
 
 ```python3
 from ganblr.utils import get_demo_data
-from ganblr.ganblr import GANBLR
+from ganblr import GANBLR
 
 # this is a discrete version of adult since GANBLR requires discrete data.
 df = get_demo_data('adult')
@@ -24,7 +24,7 @@ The steps to generate synthetic data using `GANBLR++` are similar to `GANBLR`, b
 
 ```python3
 from ganblr.utils import get_demo_data
-from ganblr.ganblr import GANBLRPP
+from ganblr import GANBLRPP
 import numpy as np
 
 # raw adult
@@ -47,13 +47,13 @@ synthetic_data = model.sample(1000)
 
 We recommend you to install ganblr through pip:
 
-```
+```bash
 pip install ganblr
 ```
 
 Alternatively, you can also clone the repository and install it from sources.
 
-```
+```bash
 git clone git@github.com:tulip-lab/ganblr.git
 cd ganblr
 python setup.py install
