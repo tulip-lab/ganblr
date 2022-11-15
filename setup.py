@@ -25,7 +25,7 @@ setup(
 
     packages = find_packages(),
     include_package_data = True,
-    install_requires = ["numpy", "tensorflow>=2.3", "scikit-learn>=0.24", "pyitlab", "pgmpy"],
+    install_requires = ["numpy", "tensorflow>=2.3", "scikit-learn>=0.24", "pyitlib", "pgmpy"],
     platforms = "any",
 
     scripts = [],
