@@ -21,7 +21,7 @@ model.fit(x, y, epochs = 10)
 synthetic_data = model.sample(1000)
 ```
 
-The steps to generate manual data using `GANBLR++` are similar to `GANBLR`, but require an additional parameter `numerical_columns` to tell the model the index of the numerical columns.
+The steps to generate synthetic data using `GANBLR++` are similar to `GANBLR`, but require an additional parameter `numerical_columns` to tell the model the index of the numerical columns.
 
 ```python3
 from ganblr.utils import get_demo_data
