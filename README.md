@@ -8,7 +8,6 @@ In this example we load the [Adult Dataset](https://archive.ics.uci.edu/ml/datas
 ```python3
 from ganblr.utils import get_demo_data
 from ganblr.ganblr import GANBLR
-from sklearn.preprocessing import OrdinalEncoder 
 
 # this is a discrete version of adult since GANBLR requires discrete data.
 df = get_demo_data('adult')
