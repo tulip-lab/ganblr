@@ -1,13 +1,37 @@
-# Introduction
+# GANBLR Toolbox
 
-GANBLR is a tabular data generation model...
+GANBLR Toolbox contains GANBLR models proposed by `Tulip Lab` for tabular data generation, which can sample fully artificial data from real data.
+
+Currently, this package contains following GANBLR models:
+
+- GANBLR
+- GANBLR++
+
+For a quick start, you can check out this usage example in Google Colab. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1w7A26JRkrXPeeA9q1Kbi_CRjbptkr8Ls?usp=sharing]
+
+# Install
+
+We recommend you to install ganblr through pip:
+
+```bash
+pip install ganblr
+```
+
+Alternatively, you can also clone the repository and install it from sources.
+
+```bash
+git clone git@github.com:tulip-lab/ganblr.git
+cd ganblr
+python setup.py install
+```
+
 # Usage Example
 
 In this example we load the [Adult Dataset](https://archive.ics.uci.edu/ml/datasets/Adult)* which is a built-in demo dataset. We use `GANBLR` to learn from the real data and then generate some synthetic data.
 
 ```python3
 from ganblr.utils import get_demo_data
-from ganblr.ganblr import GANBLR
+from ganblr import GANBLR
 
 # this is a discrete version of adult since GANBLR requires discrete data.
 df = get_demo_data('adult')
@@ -24,7 +48,7 @@ The steps to generate synthetic data using `GANBLR++` are similar to `GANBLR`, b
 
 ```python3
 from ganblr.utils import get_demo_data
-from ganblr.ganblr import GANBLRPP
+from ganblr import GANBLRPP
 import numpy as np
 
 # raw adult
@@ -43,21 +67,19 @@ model.fit(x, y, epochs = 10)
 #generate synthetic data
 synthetic_data = model.sample(1000)
 ```
-# Install
 
-We recommend you to install ganblr through pip:
+# Leaderboard
 
-```
-pip install ganblr
-```
+Here we show the results of the TSTR(Training on Synthetic data, Testing on Real data) evaluation on `Adult` dataset based on the experiments in our paper. 
 
-Alternatively, you can also clone the repository and install it from sources.
+TRTR(Train on Real, Test on Real) will be used as the baseline for comparison. You are welcome to update this Leaderboard.
 
-```
-git clone git@github.com:tulip-lab/ganblr.git
-cd ganblr
-python setup.py install
-```
+|          | LR     | MLP    | RF     | XGBT   |
+|----------|--------|--------|--------|--------|
+| TRTR     | 0.8741 | 0.8561 | 0.8379 | 0.8562 |
+| GANBLR   | 0.74   | 0.842  | 0.81   | 0.851  |
+| CTGAN    | 0.787  | 0.831  | 0.792  | 0.839  |
+| ...      | ...    | ...    | ...    | ...    |
 
 # Citation
 If you use GANBLR, please cite the following work:
