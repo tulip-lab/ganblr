@@ -7,7 +7,7 @@ Currently, this package contains following GANBLR models:
 - GANBLR
 - GANBLR++
 
-For a quick start, you can check out this usage example in Google Colab. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1w7A26JRkrXPeeA9q1Kbi_CRjbptkr8Ls?usp=sharing]
+For a quick start, you can check out this usage example in Google Colab. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1w7A26JRkrXPeeA9q1Kbi_CRjbptkr8Ls?usp=sharing)
 
 # Install
 
