@@ -96,6 +96,19 @@ DEMO_DATASETS = {
 }
 
 def get_demo_data(name='adult'):
+    """
+    Download demo dataset from internet.
+
+    Parameters
+    ----------
+    name : str 
+        Name of dataset. Should be one of ['adult', 'adult-raw'].
+
+    Returns
+    -------
+    data : pandas.DataFrame
+        the demo dataset.
+    """
     assert(name in DEMO_DATASETS.keys())
     return read_csv(DEMO_DATASETS[name]['link'], **DEMO_DATASETS[name]['params'])
 

@@ -26,20 +26,33 @@ class GANBLR:
         '''
         Fit the model to the given data.
 
-        Parameters:
-        --------
-        x, y (numpy.ndarray): Dataset to fit the model. The data should be discrete.
+        Parameters
+        ----------
+        x : array_like of shape (n_samples, n_features)
+            Dataset to fit the model. The data should be discrete.
         
-        k (int, optional): Parameter k of ganblr model. Must be greater than 0. No more than 2 is Suggested.
+        y : array_like of shape (n_samples,)
+            Label of the dataset.
 
-        batch_size (int, optional): Size of the batch to feed the model at each step. Defaults to
-            :attr:`32`.
+        k : int, default=0
+            Parameter k of ganblr model. Must be greater than 0. No more than 2 is Suggested.
+
+        batch_size : int, default=32
+            Size of the batch to feed the model at each step.
         
-        epochs (int, optional): Number of epochs to use during training. Defaults to :attr:`10`.
+        epochs : int, default=0
+            Number of epochs to use during training.
+
+        warmup_epochs : int, default=1
+            Number of epochs to use in warmup phase. Defaults to :attr:`1`.
         
-        warmup_epochs (int, optional): Number of epochs to use in warmup phase. Defaults to :attr:`1`.
+        verbose : int, default=1
+            Whether to output the log. Use 1 for log output and 0 for complete silence.
         
-        TODO: verbose (int, optional): Whether to output the log. Use 1 for log output and 0 for complete silence.
+        Returns
+        -------
+        self : object
+            Fitted model.
         '''
         if verbose is None or not isinstance(verbose, int):
             verbose = 1
@@ -72,15 +85,17 @@ class GANBLR:
         """
         Perform a TSTR(Training on Synthetic data, Testing on Real data) evaluation.
 
-        Parameters:
-        ------------------
-         x, y (numpy.ndarray): test dataset.
+        Parameters
+        ----------
+        x, y : array_like
+            Test dataset.
 
-         model: the model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model class that have sklearn-style `fit` and `predict` method.
+        model : str or object
+            The model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model class that have sklearn-style `fit` and `predict` method.
 
         Return:
         --------
-        accuracy score (float).
+        accuracy_score : float.
 
         """
         from sklearn.linear_model import LogisticRegression
@@ -118,16 +133,18 @@ class GANBLR:
         """
         Generate synthetic data.     
 
-        Parameters:
-        -----------------
-        size (int, optional): Size of the data to be generated. Defaults to: attr:`None`.
+        Parameters
+        ----------
+        size : int or None
+            Size of the data to be generated. set to `None` to make the size equal to the size of the training set.
 
-        verbose (int, optional): Whether to output the log. Use 1 for log output and 0 for complete silence.
+        verbose : int, default=1
+            Whether to output the log. Use 1 for log output and 0 for complete silence.
         
         Return:
         -----------------
-        numpy.ndarray: Generated synthetic data.
-
+        synthetic_samples : np.ndarray
+            Generated synthetic data.
         """
         ordinal_data = self._sample(size, verbose)
         origin_x = self._ordinal_encoder.inverse_transform(ordinal_data[:,:-1])
