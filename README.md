@@ -30,8 +30,8 @@ python setup.py install
 In this example we load the [Adult Dataset](https://archive.ics.uci.edu/ml/datasets/Adult)* which is a built-in demo dataset. We use `GANBLR` to learn from the real data and then generate some synthetic data.
 
 ```python3
-from ganblr.utils import get_demo_data
-from ganblr import GANBLR
+from ganblr import get_demo_data
+from ganblr.models import GANBLR
 
 # this is a discrete version of adult since GANBLR requires discrete data.
 df = get_demo_data('adult')
@@ -47,8 +47,8 @@ synthetic_data = model.sample(1000)
 The steps to generate synthetic data using `GANBLR++` are similar to `GANBLR`, but require an additional parameter `numerical_columns` to tell the model the index of the numerical columns.
 
 ```python3
-from ganblr.utils import get_demo_data
-from ganblr import GANBLRPP
+from ganblr import get_demo_data
+from ganblr.models import GANBLRPP
 import numpy as np
 
 # raw adult
@@ -68,6 +68,9 @@ model.fit(x, y, epochs = 10)
 synthetic_data = model.sample(1000)
 ```
 
+# Documentation
+
+You can check the documentation at [https://ganblr-docs.readthedocs.io/en/latest/](https://ganblr-docs.readthedocs.io/en/latest/).
 # Leaderboard
 
 Here we show the results of the TSTR(Training on Synthetic data, Testing on Real data) evaluation on `Adult` dataset based on the experiments in our paper. 

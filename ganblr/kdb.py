@@ -238,7 +238,8 @@ def get_high_order_constraints(X, col, evidence_cols, feature_uniques):
 
 class KdbHighOrderFeatureEncoder:
     '''
-    build a kdb model, use the dependency relationships to encode high order feature of given dataset.
+    High order feature encoder that uses the kdb model to retrieve the dependencies between features.
+    
     '''
     def __init__(self):
         self.dependencies_ = {}
@@ -253,13 +254,23 @@ class KdbHighOrderFeatureEncoder:
     
     def fit(self, X, y, k=0):
         '''
-        build the kdb model, obtain the dependencies.
+        Fit the KdbHighOrderFeatureEncoder to X, y.
 
-        Parameters:
-        --------------
-        x, y(numpy.ndarray): the data to fit.
+        Parameters
+        ----------
+        X : array_like of shape (n_samples, n_features)
+            data to fit in the encoder.
 
-        k(int， default 0): k value of the kdb model. k = 0 will lead to a OneHotEncoder.
+        y : array_like of shape (n_samples,)
+            label to fit in the encoder.
+
+        k : int, default=0
+            k value of the order of the high-order feature. k = 0 will lead to a OneHotEncoder.
+
+        Returns
+        -------
+        self : object
+            Fitted encoder.
         '''
         self.k = k
         edges = build_graph(X, y, k)
@@ -286,10 +297,25 @@ class KdbHighOrderFeatureEncoder:
         return self
         
     def transform(self, X, return_constraints=False, use_ohe=True):
-        '''
-        encode the high order feature,find corresbonding constraints info,
-        then arrange to a proper format and return(store) it.
-        '''
+        """
+        Transform X to the high-order features.
+
+        Parameters
+        ----------
+        X : array_like of shape (n_samples, n_features)
+            Data to fit in the encoder.
+        
+        return_constraints : bool, default=False
+            Whether to return the constraint informations. 
+        
+        use_ohe : bool, default=True
+            Whether to transform output to one-hot format.
+
+        Returns
+        -------
+        X_out : ndarray of shape (n_samples, n_encoded_features)
+            Transformed input.
+        """
         Xk = []
         have_value_idxs = []
         constraints = []
@@ -315,4 +341,28 @@ class KdbHighOrderFeatureEncoder:
             return Xk
     
     def fit_transform(self, X, y, k=0, return_constraints=False):
+        '''
+        Fit KdbHighOrderFeatureEncoder to X, y, then transform X.
+        
+        Equivalent to fit(X, y, k).transform(X, return_constraints) but more convenient.
+
+        Parameters
+        ----------
+        X : array_like of shape (n_samples, n_features)
+            data to fit in the encoder.
+
+        y : array_like of shape (n_samples,)
+            label to fit in the encoder.
+
+        k : int, default=0
+            k value of the kdb model. k = 0 will lead to a OneHotEncoder.
+        
+        return_constraints : bool, default=False
+            whether to return the constraint informations. 
+
+        Returns
+        -------
+        X_out : ndarray of shape (n_samples, n_encoded_features)
+            Transformed input.
+        '''
         return self.fit(X, y, k).transform(X, return_constraints)

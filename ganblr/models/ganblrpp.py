@@ -163,7 +163,18 @@ class DMMDiscritizer:
         return sampled_results
 
 class GANBLRPP:
+    """
+    The GANBLR++ model.
 
+    Parameters
+    ----------
+    numerical_columns : list of int
+        Indicating the indexes of numerical columns. 
+        For example, if the 3, 5, 10th feature of a data is numerical feature, then this param should be [3, 5, 10].
+    
+    random_state : int, RandomState instance or None
+        Controls the random seed given to the method chosen to initialize the parameters of `BayesianGaussianMixture` used by `GANBLRPP`.
+    """
     def __init__(self, numerical_columns, random_state=None):
         self.__discritizer = DMMDiscritizer(random_state)
         self.__ganblr = GANBLR()
@@ -173,21 +184,34 @@ class GANBLRPP:
     def fit(self, x, y, k=0, batch_size=32, epochs=10, warmup_epochs=1, verbose=1):
         '''
         Fit the model to the given data.
-S
-        Parameters:
-        --------
-        x, y (numpy.ndarray): Dataset to fit the model. The data should be discrete.
-        
-        k (int, optional): Parameter k of ganblr model. Must be greater than 0. No more than 2 is Suggested.
 
-        batch_size (int, optional): Size of the batch to feed the model at each step. Defaults to
-            :attr:`32`.
+        Parameters
+        ----------
+        x : array_like of shape (n_samples, n_features)
+            Dataset to fit the model. The data should be discrete.
         
-        epochs (int, optional): Number of epochs to use during training. Defaults to :attr:`10`.
+        y : array_like of shape (n_samples,)
+            Label of the dataset.
+
+        k : int, default=0
+            Parameter k of ganblr model. Must be greater than 0. No more than 2 is Suggested.
+
+        batch_size : int, default=32
+            Size of the batch to feed the model at each step.
         
-        warmup_epochs (int, optional): Number of epochs to use in warmup phase. Defaults to :attr:`1`.
+        epochs : int, default=0
+            Number of epochs to use during training.
+
+        warmup_epochs : int, default=1
+            Number of epochs to use in warmup phase. Defaults to :attr:`1`.
         
-        verbose (int, optional): Whether to output the log. Use 1 for log output and 0 for complete silence.
+        verbose : int, default=1
+            Whether to output the log. Use 1 for log output and 0 for complete silence.
+        
+        Returns
+        -------
+        self : object
+            Fitted model.
         '''
         numerical_columns = self._numerical_columns
         x[:,numerical_columns] = self.__discritizer.fit_transform(x[:,numerical_columns])
@@ -197,17 +221,18 @@ S
         """
         Generate synthetic data.     
 
-        Parameters:
-        -----------------
-        size (int, optional): Size of the data to be generated. Defaults to: attr:`None`.
+        Parameters
+        ----------
+        size : int or None
+            Size of the data to be generated. set to `None` to make the size equal to the size of the training set.
 
-        verbose (int, optional): Whether to output the log. Use 1 for log output and 0 for complete silence.
+        verbose : int, default=1
+            Whether to output the log. Use 1 for log output and 0 for complete silence.
         
-        n_jobs (int, optional):
         Return:
         -----------------
-        numpy.ndarray: Generated synthetic data.
-
+        synthetic_samples : np.ndarray
+            Generated synthetic data.
         """
         if verbose:
             print('Step 1/2: Sampling discrete data from GANBLR.')
@@ -225,15 +250,18 @@ S
         """
         Perform a TSTR(Training on Synthetic data, Testing on Real data) evaluation.
 
-        Parameters:
-        ------------------
-         x, y (numpy.ndarray): test dataset.
+        Parameters
+        ----------
+        x, y : array_like
+            Test dataset.
 
-         model: the model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model object that have `fit` and `predict` method.
+        model : str or object
+            The model used for evaluate. Should be one of ['lr', 'mlp', 'rf'], or a model class that have sklearn-style `fit` and `predict` method.
 
         Return:
         --------
-        accuracy score (float).
+        accuracy_score : float.
+
         """
         from sklearn.linear_model import LogisticRegression
         from sklearn.neural_network import MLPClassifier
